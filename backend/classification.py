@@ -4,7 +4,7 @@ import pandas as pd
 
 
 # ==========================================
-# CLASSIFICATION MODEL
+# PATHS
 # ==========================================
 
 BASE_DIR = os.path.dirname(
@@ -25,15 +25,25 @@ DATA_DIR = os.path.join(
 
 
 # ==========================================
-# LOAD MODEL
+# CLASSIFICATION MODEL
 # ==========================================
 
-classification_model = joblib.load(
-    os.path.join(
-        MODEL_DIR,
-        "peak_demand_classification_model.pkl"
-    )
-)
+classification_model = None
+
+
+def get_classification_model():
+
+    global classification_model
+
+    if classification_model is None:
+        classification_model = joblib.load(
+            os.path.join(
+                MODEL_DIR,
+                "peak_demand_classification_model.pkl"
+            )
+        )
+
+    return classification_model
 
 
 # ==========================================
@@ -55,7 +65,7 @@ classification_features = [
 
 
 # ==========================================
-# LOAD DATA
+# LOAD ONLY REQUIRED DATA
 # ==========================================
 
 DATA_PATH = os.path.join(
@@ -65,6 +75,10 @@ DATA_PATH = os.path.join(
 
 df = pd.read_csv(
     DATA_PATH,
+    usecols=[
+        "TimeStamp",
+        "electricity_demand_MW"
+    ],
     parse_dates=["TimeStamp"]
 )
 
@@ -116,7 +130,10 @@ daily_peak["quarter"] = (
 )
 
 daily_peak["week_of_year"] = (
-    daily_peak["date"].dt.isocalendar().week.astype(int)
+    daily_peak["date"]
+    .dt.isocalendar()
+    .week
+    .astype(int)
 )
 
 daily_peak["is_weekend"] = (
@@ -129,11 +146,13 @@ daily_peak["is_weekend"] = (
 # ==========================================
 
 daily_peak["lag_1"] = (
-    daily_peak["daily_peak_demand_MW"].shift(1)
+    daily_peak["daily_peak_demand_MW"]
+    .shift(1)
 )
 
 daily_peak["lag_7"] = (
-    daily_peak["daily_peak_demand_MW"].shift(7)
+    daily_peak["daily_peak_demand_MW"]
+    .shift(7)
 )
 
 daily_peak["rolling_mean_7"] = (
@@ -190,7 +209,10 @@ def classify_peak_demand(target_date):
             "to calculate classification features."
         )
 
-    prediction = classification_model.predict(
+    # Load classification model only when needed
+    model = get_classification_model()
+
+    prediction = model.predict(
         feature_df
     )[0]
 

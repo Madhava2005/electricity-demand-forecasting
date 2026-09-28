@@ -52,6 +52,7 @@ DATA_DIR = os.path.join(
 # LOAD MODELS
 # ==========================================
 
+# Linear Regression is small, so load it at startup
 lr_model = joblib.load(
     os.path.join(
         MODEL_DIR,
@@ -59,13 +60,23 @@ lr_model = joblib.load(
     )
 )
 
-rf_model = joblib.load(
-    os.path.join(
-        MODEL_DIR,
-        "rf_model.pkl"
-    )
-)
+# Random Forest is large, so load it only when needed
+rf_model = None
 
+
+def get_rf_model():
+
+    global rf_model
+
+    if rf_model is None:
+        rf_model = joblib.load(
+            os.path.join(
+                MODEL_DIR,
+                "rf_model.pkl"
+            )
+        )
+
+    return rf_model
 
 # ==========================================
 # LOAD CONFIGURATION
@@ -104,6 +115,45 @@ DATA_PATH = os.path.join(
 
 df = pd.read_csv(
     DATA_PATH,
+    usecols=[
+        "TimeStamp",
+        "electricity_demand_MW",
+
+        "hour",
+        "day_of_week",
+        "is_weekend",
+        "month",
+        "quarter",
+        "day_of_month",
+        "week_of_year",
+        "is_central_holiday",
+        "is_major_festival",
+
+        "northern_t2m",
+        "northern_rh2m",
+        "northern_prectotcorr",
+        "northern_ws10m",
+
+        "western_t2m",
+        "western_rh2m",
+        "western_prectotcorr",
+        "western_ws10m",
+
+        "southern_t2m",
+        "southern_rh2m",
+        "southern_prectotcorr",
+        "southern_ws10m",
+
+        "eastern_t2m",
+        "eastern_rh2m",
+        "eastern_prectotcorr",
+        "eastern_ws10m",
+
+        "north_eastern_t2m",
+        "north_eastern_rh2m",
+        "north_eastern_prectotcorr",
+        "north_eastern_ws10m"
+    ],
     parse_dates=["TimeStamp"]
 )
 
@@ -409,7 +459,9 @@ def generate_forecast(
 
         elif model_name == "random_forest":
 
-            prediction = rf_model.predict(
+            model = get_rf_model()
+
+            prediction = model.predict(
                 feature_df
             )[0]
 
@@ -543,41 +595,6 @@ def forecast(
 
     requested_model = request.model.lower()
 
-    # ==========================================
-# PEAK DEMAND CLASSIFICATION ENDPOINT
-# ==========================================
-
-class PeakClassificationRequest(BaseModel):
-
-    classification_date: str
-
-
-@app.post("/peak-classification")
-def peak_classification(
-    request: PeakClassificationRequest
-):
-
-    try:
-
-        result = classify_peak_demand(
-            request.classification_date
-        )
-
-        return result
-
-    except ValueError as e:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
-
-    except Exception as e:
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Classification error: {str(e)}"
-        )
 
     # ======================================
     # BOTH MODELS
@@ -646,3 +663,38 @@ def peak_classification(
 
         "results": results
     }
+        # ==========================================
+# PEAK DEMAND CLASSIFICATION ENDPOINT
+# ==========================================
+
+class PeakClassificationRequest(BaseModel):
+
+    classification_date: str
+
+
+@app.post("/peak-classification")
+def peak_classification(
+    request: PeakClassificationRequest
+):
+
+    try:
+
+        result = classify_peak_demand(
+            request.classification_date
+        )
+
+        return result
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Classification error: {str(e)}"
+        )
