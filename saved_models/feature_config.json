@@ -43,5 +43,5 @@
     ],
     "target": "electricity_demand_MW",
     "lr_anomaly_threshold_MW": 22595.680224716984,
-    "rf_anomaly_threshold_MW": 14905.265608462627
+    "rf_anomaly_threshold_MW": 14473.17
 }
